@@ -492,20 +492,20 @@ async function loadAdminData(){
       const row = document.createElement('div');
       row.className='pending-item';
       const nameLine = t.isInvite
-        ? `${t.name} <span style="font-size:10px;color:var(--lime);border:1px solid var(--lime);border-radius:8px;padding:1px 8px;margin-right:6px;">دعوة VIP</span>`
-        : t.name;
+        ? `${escapeHtml(t.name)} <span style="font-size:10px;color:var(--lime);border:1px solid var(--lime);border-radius:8px;padding:1px 8px;margin-right:6px;">دعوة VIP</span>`
+        : escapeHtml(t.name);
       row.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
           <div>
             <div style="font-weight:700;">${nameLine}</div>
-            <div style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;">${t.phone||'—'} — ${t.code}${t.sender?' — حوّل من: '+t.sender:''}</div>
+            <div style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;">${escapeHtml(t.phone)||'—'} — ${escapeHtml(t.code)}${t.sender?' — حوّل من: '+escapeHtml(t.sender):''}</div>
           </div>
           <div style="display:flex;gap:8px;">
-            ${t.isInvite ? '' : `<button class="btn-secondary" onclick="toggleScreenshot('${t.code}')">عرض الاسكرين</button>`}
-            <button class="btn-secondary" onclick="confirmPayment('${t.code}')">${t.isInvite ? 'تفعيل الدعوة' : 'تأكيد الدفع'}</button>
+            ${t.isInvite ? '' : `<button class="btn-secondary" onclick="toggleScreenshot('${escapeHtml(t.code)}')">عرض الاسكرين</button>`}
+            <button class="btn-secondary" onclick="confirmPayment('${escapeHtml(t.code)}')">${t.isInvite ? 'تفعيل الدعوة' : 'تأكيد الدفع'}</button>
           </div>
         </div>
-        <div id="shot-${t.code}" style="display:none;"></div>
+        <div id="shot-${escapeHtml(t.code)}" style="display:none;"></div>
       `;
       pendingEl.appendChild(row);
     });
@@ -553,6 +553,12 @@ async function createInvite(){
   }
 }
 
+function escapeHtml(str){
+  return String(str ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[c]));
+}
+
 function renderBuyersTable(list){
   const tbody = document.getElementById('buyers-tbody');
   tbody.innerHTML='';
@@ -564,9 +570,9 @@ function renderBuyersTable(list){
     const wa = waLink(t.whatsapp || t.phone, t.code, t.name);
     const mail = mailLink(t.email, t.code, t.name);
     const nameCell = t.isInvite
-      ? `${t.name} <span style="font-size:10px;color:var(--lime);border:1px solid var(--lime);border-radius:8px;padding:1px 6px;margin-right:4px;">دعوة</span>`
-      : t.name;
-    tr.innerHTML = `<td>${nameCell}</td><td style="font-family:'JetBrains Mono',monospace;">${t.phone||'—'}</td><td style="font-family:'JetBrains Mono',monospace;color:var(--lime);">${t.code}</td><td><span class="status ${statusClass}">${statusText}</span></td><td><div class="send-btns">${wa?`<a class="send-btn" href="${wa}" target="_blank" rel="noopener" title="ابعت واتساب">W</a>`:''}${mail?`<a class="send-btn" href="${mail}" title="ابعت إيميل">@</a>`:''}<button class="send-btn" onclick="sendTicketImage('${t.code}')" title="ابعت التذكرة صورة">📷</button></div></td>`;
+      ? `${escapeHtml(t.name)} <span style="font-size:10px;color:var(--lime);border:1px solid var(--lime);border-radius:8px;padding:1px 6px;margin-right:4px;">دعوة</span>`
+      : escapeHtml(t.name);
+    tr.innerHTML = `<td>${nameCell}</td><td style="font-family:'JetBrains Mono',monospace;">${escapeHtml(t.phone)||'—'}</td><td style="font-family:'JetBrains Mono',monospace;color:var(--lime);">${escapeHtml(t.code)}</td><td><span class="status ${statusClass}">${statusText}</span></td><td><div class="send-btns">${wa?`<a class="send-btn" href="${wa}" target="_blank" rel="noopener" title="ابعت واتساب">W</a>`:''}${mail?`<a class="send-btn" href="${mail}" title="ابعت إيميل">@</a>`:''}<button class="send-btn" onclick="sendTicketImage('${escapeHtml(t.code)}')" title="ابعت التذكرة صورة">📷</button></div></td>`;
     tbody.appendChild(tr);
   });
 }
@@ -659,15 +665,15 @@ async function verifyTicket(codeOverride){
     return;
   }
   if(ticket.used){
-    resultEl.innerHTML = `<div class="scan-result bad">التذكرة دي اتستخدمت قبل كده — ${ticket.name}</div>`;
+    resultEl.innerHTML = `<div class="scan-result bad">التذكرة دي اتستخدمت قبل كده — ${escapeHtml(ticket.name)}</div>`;
     return;
   }
   if(!ticket.confirmed){
-    resultEl.innerHTML = `<div class="scan-result bad">الدفع لسه قيد المراجعة — ${ticket.name}</div>`;
+    resultEl.innerHTML = `<div class="scan-result bad">الدفع لسه قيد المراجعة — ${escapeHtml(ticket.name)}</div>`;
     return;
   }
   await updateTicket(code, { used: true });
-  resultEl.innerHTML = `<div class="scan-result ok">تذكرة صالحة ✓ — أهلاً ${ticket.name}</div>`;
+  resultEl.innerHTML = `<div class="scan-result ok">تذكرة صالحة ✓ — أهلاً ${escapeHtml(ticket.name)}</div>`;
   codeInput.value='';
 }
 
