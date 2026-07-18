@@ -179,10 +179,12 @@
   .check-list{ list-style:none; padding:0; margin:22px 0 0; }
   .check-list li{ font-size:13px; color:var(--white); padding:9px 0; display:flex; gap:10px; align-items:center; }
   .check-list li::before{ content:"✓"; width:20px;height:20px;background:rgba(61,220,132,0.15); color:var(--ok); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0; }
-  .video-card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; aspect-ratio:16/10; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
-  .play-btn{ width:60px;height:60px;border-radius:50%; background:var(--red); display:flex; align-items:center; justify-content:center; font-size:20px; box-shadow:0 0 30px var(--red-glow); cursor:pointer; }
+  .video-card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; aspect-ratio:16/10; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; background-size:cover; background-position:center; }
+  .video-card::after{ content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.55)); }
+  .play-btn{ width:60px;height:60px;border-radius:50%; background:var(--red); display:flex; align-items:center; justify-content:center; font-size:20px; box-shadow:0 0 30px var(--red-glow); cursor:pointer; position:relative; z-index:1; }
   .thumb-strip{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:10px; }
-  .thumb-strip div{ aspect-ratio:1/1; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; display:flex; align-items:center; justify-content:center; opacity:0.6; font-size:18px; }
+  .thumb-strip div{ aspect-ratio:1/1; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; overflow:hidden; cursor:pointer; }
+  .thumb-strip img{ width:100%; height:100%; object-fit:cover; display:block; }
 
   /* ---------- GALLERY ---------- */
   .gallery-row{ display:flex; gap:12px; overflow-x:auto; margin-top:28px; padding-bottom:6px; scrollbar-width:thin; }
@@ -415,8 +417,12 @@
             </ul>
           </div>
           <div>
-            <div class="video-card"><div class="play-btn">▶</div></div>
-            <div class="thumb-strip"><div>🚗</div><div>🏁</div><div>🔧</div></div>
+            <div class="video-card" style="background-image:url('gallery-6.jpg');" onclick="document.getElementById('lightbox-img').src='gallery-6.jpg'; document.getElementById('lightbox').classList.add('open');"></div>
+            <div class="thumb-strip">
+              <div onclick="document.getElementById('lightbox-img').src='gallery-5.jpg'; document.getElementById('lightbox').classList.add('open');"><img src="gallery-5.jpg" alt="سيارات معدلة KFS SQUAD" loading="lazy"></div>
+              <div onclick="document.getElementById('lightbox-img').src='gallery-8.jpg'; document.getElementById('lightbox').classList.add('open');"><img src="gallery-8.jpg" alt="سيارات معدلة KFS SQUAD" loading="lazy"></div>
+              <div onclick="document.getElementById('lightbox-img').src='gallery-3.jpg'; document.getElementById('lightbox').classList.add('open');"><img src="gallery-3.jpg" alt="سيارات معدلة KFS SQUAD" loading="lazy"></div>
+            </div>
           </div>
         </div>
       </section>
@@ -550,10 +556,10 @@
       <section>
         <div class="card">
           <div style="font-family:'Lalezar',sans-serif;font-size:20px;margin-bottom:16px;">بيانات الحجز</div>
-          <div class="field"><label>الاسم بالكامل</label><input type="text" id="buyer-name" placeholder="اكتب اسمك"></div>
-          <div class="field"><label>رقم الموبايل</label><input type="tel" id="buyer-phone" placeholder="01000000000"></div>
-          <div class="field"><label>رقم الواتساب (لإرسال التذكرة عليه)</label><input type="tel" id="buyer-whatsapp" placeholder="01000000000"></div>
-          <div class="field"><label>الإيميل</label><input type="email" id="buyer-email" placeholder="name@example.com"></div>
+          <div class="field"><label>الاسم بالكامل</label><input type="text" id="buyer-name" placeholder="اكتب اسمك" maxlength="60" required></div>
+          <div class="field"><label>رقم الموبايل</label><input type="tel" id="buyer-phone" placeholder="01000000000" maxlength="11" inputmode="numeric" pattern="01[0-9]{9}" required></div>
+          <div class="field"><label>رقم الواتساب (لإرسال التذكرة عليه)</label><input type="tel" id="buyer-whatsapp" placeholder="01000000000" maxlength="11" inputmode="numeric" pattern="01[0-9]{9}"></div>
+          <div class="field"><label>الإيميل</label><input type="email" id="buyer-email" placeholder="name@example.com" maxlength="100"></div>
           <div id="register-error" style="color:var(--red);font-size:12px;margin-bottom:10px;"></div>
           <button class="btn-primary" onclick="goToPaymentStep()">التالي: الدفع</button>
           <div style="text-align:center;margin-top:10px;">
@@ -572,7 +578,7 @@
             <div class="row"><span class="lbl">فودافون كاش</span><span class="num">01061033291</span></div>
             <div class="row"><span class="lbl">إنستاباي</span><span class="num">01120679761</span></div>
           </div>
-          <div class="field"><label>الرقم اللي حوّلت منه</label><input type="tel" id="buyer-sender" placeholder="01000000000"></div>
+          <div class="field"><label>الرقم اللي حوّلت منه</label><input type="tel" id="buyer-sender" placeholder="01000000000" maxlength="11" inputmode="numeric" pattern="01[0-9]{9}"></div>
           <div class="field"><label>اسكرين شوت التحويل</label><input type="file" accept="image/*" id="buyer-screenshot"></div>
           <div id="checkout-error" style="color:var(--red);font-size:12px;margin-bottom:10px;"></div>
           <button class="btn-primary" id="pay-btn" onclick="processPayment()">أكدت إني حوّلت 300 ج.م</button>
@@ -698,6 +704,13 @@ function goToPaymentStep(){
   const phone = document.getElementById('buyer-phone').value.trim();
   const errEl = document.getElementById('register-error');
   if(!name || !phone){ errEl.textContent='اكتب الاسم والموبايل الأول.'; return; }
+  if(name.length < 3 || name.length > 60){ errEl.textContent='الاسم لازم يكون بين 3 و60 حرف.'; return; }
+  if(!/^[\u0600-\u06FFa-zA-Z\s]+$/.test(name)){ errEl.textContent='الاسم لازم يكون حروف بس (عربي أو إنجليزي).'; return; }
+  if(!/^01[0-9]{9}$/.test(phone)){ errEl.textContent='رقم الموبايل لازم يكون 11 رقم ويبدأ بـ01.'; return; }
+  const whatsapp = document.getElementById('buyer-whatsapp').value.trim();
+  if(whatsapp && !/^01[0-9]{9}$/.test(whatsapp)){ errEl.textContent='رقم الواتساب لازم يكون 11 رقم ويبدأ بـ01.'; return; }
+  const email = document.getElementById('buyer-email').value.trim();
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ errEl.textContent='صيغة الإيميل مش صح.'; return; }
   errEl.textContent='';
   document.getElementById('step-register').style.display='none';
   document.getElementById('step-payment').style.display='block';
@@ -706,6 +719,12 @@ function goToPaymentStep(){
 function backToRegisterStep(){
   document.getElementById('step-payment').style.display='none';
   document.getElementById('step-register').style.display='block';
+}
+
+function escapeHtml(str){
+  return String(str ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[c]));
 }
 
 function genCode(){
@@ -831,6 +850,7 @@ async function processPayment(){
   const screenshotFile = document.getElementById('buyer-screenshot').files[0];
   const errEl = document.getElementById('checkout-error');
   if(!sender){ errEl.textContent='اكتب الرقم اللي حوّلت منه.'; return; }
+  if(!/^01[0-9]{9}$/.test(sender)){ errEl.textContent='رقم التحويل لازم يكون 11 رقم ويبدأ بـ01.'; return; }
   if(!screenshotFile){ errEl.textContent='ارفع اسكرين شوت التحويل.'; return; }
   errEl.textContent='';
 
@@ -918,10 +938,10 @@ async function renderMyTickets(){
       <div class="qr-box"><div id="${qrId}"></div></div>
       <div class="info">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <div class="code">${code}</div>
+          <div class="code">${escapeHtml(code)}</div>
           ${t && t.isInvite ? '<span style="font-size:10px;color:var(--red);border:1px solid var(--red);border-radius:8px;padding:2px 8px;">دعوة</span>' : ''}
         </div>
-        <div style="font-size:13px;color:var(--muted);margin-top:4px;">${t ? t.name : ''}</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:4px;">${t ? escapeHtml(t.name) : ''}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.9;font-family:'JetBrains Mono',monospace;">
           ${EVENT_NAME}<br>
           ${EVENT_DATE} — ${EVENT_TIME}<br>
