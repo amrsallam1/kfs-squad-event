@@ -1,0 +1,79 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == 'meroo3292@gmail.com';
+    }
+
+    function isValidPublicTicket(ticketId) {
+      return request.resource.data.keys().hasOnly([
+          'code', 'name', 'phone', 'whatsapp', 'email', 'sender',
+          'confirmed', 'rejected', 'used', 'ts'
+        ])
+        && request.resource.data.code == ticketId
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 3
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.phone.matches('^01[0-9]{9}$')
+        && request.resource.data.sender.matches('^01[0-9]{9}$')
+        && request.resource.data.whatsapp is string
+        && (
+          request.resource.data.whatsapp == ''
+          || request.resource.data.whatsapp.matches('^01[0-9]{9}$')
+        )
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 100
+        && request.resource.data.confirmed == false
+        && (
+          !('rejected' in request.resource.data)
+          || request.resource.data.rejected == false
+        )
+        && request.resource.data.used == false
+        && request.resource.data.ts is int;
+    }
+
+    match /event/main {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin()
+        || (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sold'])
+          && request.resource.data.capacity == resource.data.capacity
+          && request.resource.data.sold is int
+          && request.resource.data.sold > resource.data.sold
+          && request.resource.data.sold <= resource.data.sold + 10
+          && request.resource.data.sold <= resource.data.capacity
+        );
+      allow delete: if false;
+    }
+
+    match /tickets/{ticketId} {
+      // A ticket code is a bearer secret. Public clients may fetch a known code,
+      // but may never enumerate all buyers.
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if isAdmin() || isValidPublicTicket(ticketId);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /screenshots/{ticketId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        || (
+          request.resource.data.keys().hasOnly(['data', 'createdAt'])
+          && request.resource.data.data is string
+          && request.resource.data.data.size() < 900000
+          && getAfter(/databases/$(database)/documents/tickets/$(ticketId)).data.confirmed == false
+          && getAfter(/databases/$(database)/documents/tickets/$(ticketId)).data.used == false
+        );
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
