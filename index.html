@@ -776,52 +776,44 @@ async function getEventData(){
     };
   }catch(e){ console.error(e); return { capacity: DEFAULT_CAPACITY, sold: 0 }; }
 }
-async function bumpSold(n){
-  await db.collection('event').doc('main').set(
-    { sold: firebase.firestore.FieldValue.increment(n) },
-    { merge:true }
-  );
-}
 async function getTicket(code){
   const doc = await db.collection('tickets').doc(code).get();
   return doc.exists ? doc.data() : null;
 }
 
-function digitsOnly(s){
-  const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9',
-               '۰':'0','۱':'1','۲':'2','۳':'3','۴':'4','۵':'5','۶':'6','۷':'7','۸':'8','۹':'9'};
-  return String(s||'').replace(/[٠-٩۰-۹]/g, d=>map[d]||d).replace(/[^0-9]/g,'');
-}
-function phoneCandidates(raw){
-  const d = digitsOnly(raw);
-  const set = new Set();
-  if(!d) return [];
-  set.add(d);
-  if(d.startsWith('20') && d.length===12){ set.add('0'+d.slice(2)); set.add(d.slice(2)); }
-  if(d.startsWith('0') && d.length===11){ set.add('20'+d.slice(1)); set.add(d.slice(1)); }
-  if(!d.startsWith('0') && !d.startsWith('20') && d.length===10){ set.add('0'+d); set.add('20'+d); }
-  return [...set].slice(0,10);
-}
-async function hasPendingOrderForPhone(phone){
-  const candidates = phoneCandidates(phone);
-  if(!candidates.length) return false;
-  try{
-    const snap = await db.collection('tickets')
-      .where('phone','in',candidates)
-      .where('confirmed','==',false)
-      .limit(1)
-      .get();
-    return !snap.empty;
-  }catch(e){
-    console.error(e);
-    return false;
-  }
-}
-async function addTicket(ticket){
-  await db.collection('tickets').doc(ticket.code).set(ticket);
-}
-async function saveScreenshot(code, dataUrl){
-  await db.collection('screenshots').doc(code).set({ data: dataUrl });
+async function reserveTickets(tickets, screenshotData){
+  const eventRef = db.collection('event').doc('main');
+  const ticketRefs = tickets.map(ticket => db.collection('tickets').doc(ticket.code));
+  const screenshotRefs = tickets.map(ticket => db.collection('screenshots').doc(ticket.code));
+
+  await db.runTransaction(async transaction => {
+    const eventDoc = await transaction.get(eventRef);
+    const eventData = eventDoc.exists ? eventDoc.data() : {};
+    const capacity = Number(eventData.capacity) || DEFAULT_CAPACITY;
+    const sold = Number(eventData.sold) || 0;
+
+    if(sold + tickets.length > capacity){
+      const error = new Error('sold-out');
+      error.code = 'sold-out';
+      throw error;
+    }
+
+    const existingTickets = await Promise.all(ticketRefs.map(ref => transaction.get(ref)));
+    if(existingTickets.some(doc => doc.exists)){
+      const error = new Error('code-collision');
+      error.code = 'code-collision';
+      throw error;
+    }
+
+    transaction.set(eventRef, { capacity, sold: sold + tickets.length }, { merge:true });
+    tickets.forEach((ticket, index) => {
+      transaction.set(ticketRefs[index], ticket);
+      transaction.set(screenshotRefs[index], {
+        data: screenshotData,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+  });
 }
 
 async function refreshGauge(){
@@ -849,6 +841,14 @@ async function processPayment(){
   const sender = document.getElementById('buyer-sender').value.trim();
   const screenshotFile = document.getElementById('buyer-screenshot').files[0];
   const errEl = document.getElementById('checkout-error');
+  if(screenshotFile && !screenshotFile.type.startsWith('image/')){
+    errEl.textContent='اختار صورة صحيحة لإثبات التحويل.';
+    return;
+  }
+  if(screenshotFile && screenshotFile.size > 8*1024*1024){
+    errEl.textContent='حجم الصورة كبير — اختار صورة أقل من 8 MB.';
+    return;
+  }
   if(!sender){ errEl.textContent='اكتب الرقم اللي حوّلت منه.'; return; }
   if(!/^01[0-9]{9}$/.test(sender)){ errEl.textContent='رقم التحويل لازم يكون 11 رقم ويبدأ بـ01.'; return; }
   if(!screenshotFile){ errEl.textContent='ارفع اسكرين شوت التحويل.'; return; }
@@ -860,12 +860,6 @@ async function processPayment(){
   payBtn.textContent = 'جاري التسجيل...';
 
   try{
-    const hasPending = await hasPendingOrderForPhone(phone);
-    if(hasPending){
-      errEl.textContent = 'عندك حجز قيد المراجعة بنفس رقم الموبايل ده بالفعل — استنى التأكيد الأول قبل ما تحجز تاني، أو كلمنا على واتساب لو فيه مشكلة.';
-      return;
-    }
-
     const { capacity, sold } = await getEventData();
     const left = capacity - sold;
     if(left < currentQty){
@@ -882,19 +876,22 @@ async function processPayment(){
     }
 
     const waMsg = `أهلاً، أنا ${name} — عايز أأكد إني اشتريت تذكرة لإيفنت KFS SQUAD EVENT 2026. هبعتلكم اسكرين شوت التحويل دلوقتي.`;
-    window.open(`https://wa.me/2${WHATSAPP_NUMBER}?text=${encodeURIComponent(waMsg)}`, '_blank');
-
-    const newCodes = [];
-    for(let i=0;i<currentQty;i++){
-      const code = genCode();
-      newCodes.push(code);
-      try{
-        await addTicket({ code, name, phone, whatsapp, email, sender, confirmed:false, used:false, ts: Date.now() });
-        await saveScreenshot(code, screenshotData);
-      }catch(e){ console.error(e); }
-    }
-    try{ await bumpSold(newCodes.length); }catch(e){ console.error(e); }
+    const newTickets = Array.from({ length: currentQty }, () => ({
+      code: genCode(),
+      name,
+      phone,
+      whatsapp,
+      email,
+      sender,
+      confirmed:false,
+      rejected:false,
+      used:false,
+      ts: Date.now()
+    }));
+    await reserveTickets(newTickets, screenshotData);
+    const newCodes = newTickets.map(ticket => ticket.code);
     addMyTickets(newCodes);
+    window.open(`https://wa.me/2${WHATSAPP_NUMBER}?text=${encodeURIComponent(waMsg)}`, '_blank', 'noopener');
 
     closeCheckout();
     document.getElementById('buyer-name').value='';
@@ -906,6 +903,13 @@ async function processPayment(){
     currentQty=1; changeQty(0);
     await refreshGauge();
     document.querySelector('.kfs-tab[data-view="mytickets"]').click();
+  } catch(e) {
+    console.error(e);
+    if(e && (e.code === 'sold-out' || e.message === 'sold-out')){
+      errEl.textContent = 'للأسف مفيش تذاكر كفاية متبقية.';
+    }else{
+      errEl.textContent = 'الحجز ماتسجلش وماتخصمش من العدد — جرب تاني بعد شوية.';
+    }
   } finally {
     isSubmittingPayment = false;
     payBtn.disabled = false;
